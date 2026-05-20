@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 釜山ホテル空室監視スクリプト
-Booking.com / Trip.com / 東横INN / Solaria / Hound Hotel / Ramada Encore / 釜山アルピナ / Asti Hotel / H-Avenue Hotel を監視し、
+Booking.com / Trip.com / 東横INN / Solaria / Hound Hotel / Ramada Encore / 釜山アルピナ / Asti Hotel / H-Avenue Hotel / Busan City Hotel を監視し、
 予算内のホテルが見つかったらDiscordに通知する
 """
 
@@ -21,7 +21,7 @@ from selenium_stealth import stealth
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 SOURCE = "☁️ GitHub Actions" if os.environ.get("GITHUB_ACTIONS") == "true" else "🖥️ ローカル"
 BUDGET_MIN_JPY = 6_000
-BUDGET_JPY = 20_000
+BUDGET_JPY = 15_000
 BLOCK_KEYWORDS = [
     "hostel", "guesthouse", "guest house", "motel",
     "ホステル", "ゲストハウス", "モーテル", "民宿", "ペンション",
@@ -1056,6 +1056,121 @@ def check_h_avenue(checkin: str, checkout: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Busan City Hotel（G1soft公式予約システム）
+# 住所: 부산광역시 연제구 신촌로 19
+# ---------------------------------------------------------------------------
+
+def check_busan_city_hotel(checkin: str, checkout: str) -> list[dict]:
+    results = []
+    try:
+        headers = {"User-Agent": USER_AGENT}
+        search_url = (
+            "https://booking.g1soft.co.kr/resv_step1.php"
+            f"?BRANCH_CD=5129&FR_DATE={checkin}&TO_DATE={checkout}"
+            "&server=www.busancityhotel.com&child=0&adult=1&baby=0&sPackage=&lang=ko"
+        )
+        r = requests.get(search_url, headers=headers, timeout=20)
+        html = r.text
+
+        if "예약 가능한 객실이 없습니다" in html:
+            print("  [Busan City Hotel] 空室なし（満室）")
+            return results
+
+        m = re.search(r'<div class="listwrap">(.*?)</div><!--.reserve-listwrap', html, re.DOTALL)
+        if not m:
+            print("  [Busan City Hotel] 解析失敗（listwrap見つからず）")
+            return results
+
+        listwrap_html = m.group(1)
+
+        # jsDetail('RMTYPE') から部屋タイプコードを抽出
+        room_codes = re.findall(r"jsDetail\('([^']+)'\)", listwrap_html)
+        # 部屋名を抽出（class名の揺らぎに対応）
+        room_names_raw = re.findall(
+            r'class="(?:rm-nm|room-nm|rm_nm)"[^>]*>(.*?)</\w+>',
+            listwrap_html, re.DOTALL,
+        )
+        room_names = [re.sub(r"<[^>]+>", "", n).strip() for n in room_names_raw]
+
+        booking_url = "http://www.busancityhotel.com/sub/sub0401.php"
+
+        if not room_codes:
+            print("  [Busan City Hotel] 空室あり（部屋タイプ取得失敗）")
+            results.append({
+                "site": "Busan City Hotel",
+                "name": "Busan City Hotel",
+                "checkin": checkin,
+                "price": "要確認",
+                "price_num": 0,
+                "area": "その他",
+                "url": booking_url,
+            })
+            return results
+
+        ajax_headers = {
+            **headers,
+            "X-Requested-With": "XMLHttpRequest",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Referer": search_url,
+        }
+
+        for i, room_code in enumerate(room_codes):
+            room_name = room_names[i] if i < len(room_names) else f"客室{i + 1}"
+            try:
+                resp = requests.post(
+                    "https://booking.g1soft.co.kr/ajax/get.amount.php",
+                    data={
+                        "branch_cd": "5129",
+                        "rmtype": room_code,
+                        "salestype": "",
+                        "salestype_seq": "",
+                        "fr_date": checkin,
+                        "to_date": checkout,
+                        "person": "1",
+                        "lang": "ko",
+                        "server": "www.busancityhotel.com",
+                        "sales_cust_no": "0000000000",
+                        "rm_cnt": "1",
+                        "adult": "1",
+                        "child": "0",
+                        "baby": "0",
+                        "package": "",
+                    },
+                    headers=ajax_headers,
+                    timeout=10,
+                )
+                data = resp.json()
+                total_raw = data.get("total") or data.get("sales_amount") or ""
+                if not total_raw:
+                    continue
+                total_krw = int(str(total_raw).replace(",", "").replace("원", "").strip())
+                price_jpy = int(total_krw * KRW_TO_JPY)
+                if BUDGET_MIN_JPY <= price_jpy <= BUDGET_JPY:
+                    print(f"    ✓ {room_name}: ₩{total_krw:,} ≈ ¥{price_jpy:,}")
+                    results.append({
+                        "site": "Busan City Hotel",
+                        "name": f"Busan City Hotel {room_name}",
+                        "checkin": checkin,
+                        "price": f"₩{total_krw:,}（≈¥{price_jpy:,}）",
+                        "price_num": price_jpy,
+                        "area": "その他",
+                        "url": booking_url,
+                    })
+            except Exception as e:
+                print(f"    [Busan City Hotel {room_name}] 価格取得エラー: {e}")
+
+        if not results:
+            print("  [Busan City Hotel] 空室あり（予算超過または価格取得失敗）")
+        else:
+            print(f"  [Busan City Hotel] {len(results)} 件の空室あり")
+
+    except Exception as e:
+        print(f"  [Busan City Hotel] エラー: {e}")
+
+    return results
+
+
+# ---------------------------------------------------------------------------
 # エントリーポイント
 # ---------------------------------------------------------------------------
 
@@ -1098,6 +1213,9 @@ def main() -> None:
 
         print("  【H-Avenue Hotel Busan】")
         all_hotels += check_h_avenue(checkin, checkout)
+
+        print("  【Busan City Hotel】")
+        all_hotels += check_busan_city_hotel(checkin, checkout)
         print()
 
     print(f"=== 結果サマリー ===")
