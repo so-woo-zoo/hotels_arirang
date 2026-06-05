@@ -106,10 +106,15 @@ def save_seen(keys: set[str]) -> None:
 # ---------------------------------------------------------------------------
 
 def _post_discord(payload: dict) -> bool:
-    resp = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
-    if resp.status_code == 204:
-        return True
-    print(f"[Discord] 送信失敗: HTTP {resp.status_code} / {resp.text}")
+    for attempt in range(3):
+        resp = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
+        if resp.status_code == 204:
+            return True
+        if resp.status_code == 429:
+            retry_after = float(resp.json().get("retry_after", 1))
+            time.sleep(retry_after + 0.5)
+            continue
+        print(f"[Discord] 送信失敗: HTTP {resp.status_code} / {resp.text}")
     return False
 
 
@@ -168,7 +173,13 @@ def send_discord_notification(hotels: list[dict]) -> None:
         if chunk:
             _post_discord({"content": "".join(chunk), "flags": 4})
 
-    # 本命ホテルが新着に含まれていたら最優先通知
+    if new_hotels:
+        _send_list(new_hotels, f"🆕 **新着の空室**（{len(new_hotels)}件）｜ {SOURCE}\n")
+
+    if old_hotels:
+        _send_list(old_hotels, f"📋 **継続中の空室**（{len(old_hotels)}件）｜ {SOURCE}\n")
+
+    # 本命ホテルが新着に含まれていたら最後に最優先通知（レート制限を避けるため後送り）
     priority_new = [
         h for h in new_hotels
         if h.get("site") in PRIORITY_HOTELS
@@ -176,6 +187,7 @@ def send_discord_notification(hotels: list[dict]) -> None:
         and h.get("checkin") in PRIORITY_HOTELS[h["site"]]["checkins"]
     ]
     if priority_new:
+        time.sleep(1)  # 直前のメッセージとの間隔
         for h in priority_new:
             msg = (
                 f"@here\n"
@@ -186,12 +198,7 @@ def send_discord_notification(hotels: list[dict]) -> None:
                 f"👉 {h.get('url', '')}"
             )
             _post_discord({"content": msg})
-
-    if new_hotels:
-        _send_list(new_hotels, f"🆕 **新着の空室**（{len(new_hotels)}件）｜ {SOURCE}\n")
-
-    if old_hotels:
-        _send_list(old_hotels, f"📋 **継続中の空室**（{len(old_hotels)}件）｜ {SOURCE}\n")
+            time.sleep(0.5)
 
     # 既出セットを今回の結果で更新
     save_seen(seen | {_hotel_key(h) for h in hotels})
