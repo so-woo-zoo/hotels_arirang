@@ -188,17 +188,12 @@ def send_discord_notification(hotels: list[dict]) -> None:
     ]
     if priority_new:
         time.sleep(1)  # 直前のメッセージとの間隔
+        lines = ["@here\n🚨🚨🚨 **【本命！】東横INN 海雲台 空室あり！** 🚨🚨🚨\n"]
         for h in priority_new:
-            msg = (
-                f"@here\n"
-                f"🚨🚨🚨 **【本命！】東横INN 海雲台 空室あり！** 🚨🚨🚨\n"
-                f"📅 チェックイン: **{h['checkin']}**\n"
-                f"🏨 {h['name']}\n"
-                f"💴 {h['price']}\n"
-                f"👉 {h.get('url', '')}"
-            )
-            _post_discord({"content": msg})
-            time.sleep(0.5)
+            url = h.get("url", "")
+            name_link = f"[{h['name']}]({url})" if url else h["name"]
+            lines.append(f"📅 **{h['checkin']}**　・{name_link}　{h['price']}\n")
+        _post_discord({"content": "".join(lines), "flags": 4})
 
     # 既出セットを今回の結果で更新
     save_seen(seen | {_hotel_key(h) for h in hotels})
