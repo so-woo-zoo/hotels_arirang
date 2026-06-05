@@ -97,6 +97,8 @@ def load_seen() -> set[str]:
         return set()
 
 def save_seen(keys: set[str]) -> None:
+    # 前回の空室状態を上書き保存（累積ではなく最新状態のみ保持）
+    # → 満室になって消えたホテルはここから消え、復活時に「新着」として再検知できる
     with open(SEEN_FILE, "w") as f:
         json.dump(list(keys), f, ensure_ascii=False)
 
@@ -195,8 +197,9 @@ def send_discord_notification(hotels: list[dict]) -> None:
             lines.append(f"📅 **{h['checkin']}**　・{name_link}　{h['price']}\n")
         _post_discord({"content": "".join(lines), "flags": 4})
 
-    # 既出セットを今回の結果で更新
-    save_seen(seen | {_hotel_key(h) for h in hotels})
+    # 今回の空室のみ保存（seenとのunionではなく今回分だけ）
+    # こうすることで満室になって消えたホテルが次回「新着」として再検知される
+    save_seen({_hotel_key(h) for h in hotels})
 
     total_sent = min(len(new_hotels), 10) + (1 if old_hotels else 0)
     print(f"[Discord] 送信完了 — 新規:{len(new_hotels)}件 / 既出:{len(old_hotels)}件")
