@@ -1210,38 +1210,40 @@ def main() -> None:
     for checkin, checkout in DATE_RANGES:
         print(f"--- {checkin} チェックイン ---")
 
-        print("  【Booking.com】")
-        all_hotels += check_booking_com(checkin, checkout)
+        # 一時停止中（東横INN海雲台のみ監視）
+        # print("  【Booking.com】")
+        # all_hotels += check_booking_com(checkin, checkout)
 
-        print("  【Trip.com】")
-        all_hotels += check_trip_com(checkin, checkout)
+        # print("  【Trip.com】")
+        # all_hotels += check_trip_com(checkin, checkout)
 
-        print("  【東横INN釜山駅1】")
-        all_hotels += check_toyoko_inn(checkin, checkout)
+        print("  【東横INN 海雲台】")
+        toyoko_results = check_toyoko_inn(checkin, checkout)
+        all_hotels += [h for h in toyoko_results if h.get("area") == "海雲台"]
 
-        print("  【Solaria Nishitetsu Hotel Busan】")
-        all_hotels += check_solaria_busan(checkin, checkout)
+        # print("  【Solaria Nishitetsu Hotel Busan】")
+        # all_hotels += check_solaria_busan(checkin, checkout)
 
-        print("  【Haeundae Hound Hotel Signature】")
-        all_hotels += check_hound_hotel(checkin, checkout)
+        # print("  【Haeundae Hound Hotel Signature】")
+        # all_hotels += check_hound_hotel(checkin, checkout)
 
-        print("  【Ramada Encore by Wyndham Busan Station】")
-        all_hotels += check_ramada_busan(checkin, checkout)
+        # print("  【Ramada Encore by Wyndham Busan Station】")
+        # all_hotels += check_ramada_busan(checkin, checkout)
 
-        print("  【Hotel Foret Premier Nampo】")
-        all_hotels += check_foret_premier(checkin, checkout)
+        # print("  【Hotel Foret Premier Nampo】")
+        # all_hotels += check_foret_premier(checkin, checkout)
 
-        print("  【Asti Hotel】")
-        all_hotels += check_asti_hotel(checkin, checkout)
+        # print("  【Asti Hotel】")
+        # all_hotels += check_asti_hotel(checkin, checkout)
 
-        print("  【釜山都市公社アルピナ】")
-        all_hotels += check_alpina(checkin, checkout)
+        # print("  【釜山都市公社アルピナ】")
+        # all_hotels += check_alpina(checkin, checkout)
 
-        print("  【H-Avenue Hotel Busan】")
-        all_hotels += check_h_avenue(checkin, checkout)
+        # print("  【H-Avenue Hotel Busan】")
+        # all_hotels += check_h_avenue(checkin, checkout)
 
-        print("  【Busan City Hotel】")
-        all_hotels += check_busan_city_hotel(checkin, checkout)
+        # print("  【Busan City Hotel】")
+        # all_hotels += check_busan_city_hotel(checkin, checkout)
         print()
 
     print(f"=== 結果サマリー ===")
