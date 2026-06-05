@@ -38,8 +38,13 @@ DATE_RANGES = [
     ("2026-06-11", "2026-06-12"),
     ("2026-06-12", "2026-06-13"),
     ("2026-06-13", "2026-06-14"),
-    ("2026-06-14", "2026-06-15"),
+    # ("2026-06-14", "2026-06-15"),  # 確保済みのため監視停止
 ]
+
+# 本命ホテル：これが出たら最優先通知
+PRIORITY_HOTELS = {
+    "東横INN": {"area": "海雲台", "checkins": {"2026-06-11", "2026-06-12", "2026-06-13"}},
+}
 SCREENSHOT_DIR = "screenshots"
 
 USER_AGENT = (
@@ -162,6 +167,25 @@ def send_discord_notification(hotels: list[dict]) -> None:
             chunk_len += len(addition)
         if chunk:
             _post_discord({"content": "".join(chunk), "flags": 4})
+
+    # 本命ホテルが新着に含まれていたら最優先通知
+    priority_new = [
+        h for h in new_hotels
+        if h.get("site") in PRIORITY_HOTELS
+        and h.get("area") == PRIORITY_HOTELS[h["site"]]["area"]
+        and h.get("checkin") in PRIORITY_HOTELS[h["site"]]["checkins"]
+    ]
+    if priority_new:
+        for h in priority_new:
+            msg = (
+                f"@here\n"
+                f"🚨🚨🚨 **【本命！】東横INN 海雲台 空室あり！** 🚨🚨🚨\n"
+                f"📅 チェックイン: **{h['checkin']}**\n"
+                f"🏨 {h['name']}\n"
+                f"💴 {h['price']}\n"
+                f"👉 {h.get('url', '')}"
+            )
+            _post_discord({"content": msg})
 
     if new_hotels:
         _send_list(new_hotels, f"🆕 **新着の空室**（{len(new_hotels)}件）｜ {SOURCE}\n")
