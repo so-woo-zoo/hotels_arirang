@@ -35,7 +35,7 @@ def _is_blocked(name: str) -> bool:
     lower = name.lower()
     return any(kw in lower for kw in BLOCK_KEYWORDS)
 DATE_RANGES = [
-    ("2026-06-11", "2026-06-12"),
+    # ("2026-06-11", "2026-06-12"),  # 確保済みのため監視停止
     ("2026-06-12", "2026-06-13"),
     ("2026-06-13", "2026-06-14"),
     # ("2026-06-14", "2026-06-15"),  # 確保済みのため監視停止
@@ -43,7 +43,7 @@ DATE_RANGES = [
 
 # 本命ホテル：これが出たら最優先通知
 PRIORITY_HOTELS = {
-    "東横INN": {"area": "海雲台", "checkins": {"2026-06-11", "2026-06-12", "2026-06-13"}},
+    "東横INN": {"area": "海雲台", "checkins": {"2026-06-12", "2026-06-13"}},
 }
 SCREENSHOT_DIR = "screenshots"
 
