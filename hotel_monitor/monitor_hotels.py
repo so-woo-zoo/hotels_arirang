@@ -397,6 +397,9 @@ TOYOKO_INN_AREA = {
     "00256": "海雲台",
 }
 
+# 東横INN海雲台：この文字列を含む部屋タイプのみ通知する（空文字にすると全部屋を通知）
+TOYOKO_HAEUNDAE_ROOM_FILTER = "海側ダブル"
+
 def _check_toyoko_inn_one(bid: str, hotel_code: str, checkin: str, checkout: str) -> list[dict]:
     results = []
     headers = {"User-Agent": USER_AGENT}
@@ -1207,7 +1210,13 @@ def main() -> None:
 
         print("  【東横INN 海雲台】")
         toyoko_results = check_toyoko_inn(checkin, checkout)
-        all_hotels += [h for h in toyoko_results if h.get("area") == "海雲台"]
+        for h in toyoko_results:
+            if h.get("area") != "海雲台":
+                continue
+            if TOYOKO_HAEUNDAE_ROOM_FILTER and TOYOKO_HAEUNDAE_ROOM_FILTER not in h["name"]:
+                print(f"    スキップ（部屋フィルター対象外）: {h['name']}")
+                continue
+            all_hotels.append(h)
 
         # print("  【Solaria Nishitetsu Hotel Busan】")
         # all_hotels += check_solaria_busan(checkin, checkout)
