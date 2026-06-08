@@ -181,21 +181,6 @@ def send_discord_notification(hotels: list[dict]) -> None:
     if old_hotels:
         _send_list(old_hotels, f"📋 **継続中の空室**（{len(old_hotels)}件）｜ {SOURCE}\n")
 
-    # 本命ホテルが新着に含まれていたら最後に最優先通知（レート制限を避けるため後送り）
-    priority_new = [
-        h for h in new_hotels
-        if h.get("site") in PRIORITY_HOTELS
-        and h.get("area") == PRIORITY_HOTELS[h["site"]]["area"]
-        and h.get("checkin") in PRIORITY_HOTELS[h["site"]]["checkins"]
-    ]
-    if priority_new:
-        time.sleep(1)  # 直前のメッセージとの間隔
-        lines = ["🚨🚨🚨 **【本命！】東横INN 海雲台 空室あり！** 🚨🚨🚨\n"]
-        for h in priority_new:
-            url = h.get("url", "")
-            name_link = f"[{h['name']}]({url})" if url else h["name"]
-            lines.append(f"📅 **{h['checkin']}**　・{name_link}　{h['price']}\n")
-        _post_discord({"content": "".join(lines), "flags": 4})
 
     # 今回の空室のみ保存（seenとのunionではなく今回分だけ）
     # こうすることで満室になって消えたホテルが次回「新着」として再検知される
