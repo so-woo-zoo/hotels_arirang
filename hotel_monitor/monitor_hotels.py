@@ -190,7 +190,7 @@ def send_discord_notification(hotels: list[dict]) -> None:
     ]
     if priority_new:
         time.sleep(1)  # 直前のメッセージとの間隔
-        lines = ["@here\n🚨🚨🚨 **【本命！】東横INN 海雲台 空室あり！** 🚨🚨🚨\n"]
+        lines = ["🚨🚨🚨 **【本命！】東横INN 海雲台 空室あり！** 🚨🚨🚨\n"]
         for h in priority_new:
             url = h.get("url", "")
             name_link = f"[{h['name']}]({url})" if url else h["name"]
