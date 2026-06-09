@@ -36,14 +36,20 @@ def _is_blocked(name: str) -> bool:
     return any(kw in lower for kw in BLOCK_KEYWORDS)
 # ============================================================
 # 【2026年6月 釜山旅行】監視完了・全日程ホテル確保済み（2026-06-10）
-# 次回使う場合はここに日付を追加して監視再開できます
-# 例: ("2026-XX-XX", "2026-XX-XX"),
 # ============================================================
 DATE_RANGES = [
     # ("2026-06-11", "2026-06-12"),  # 確保済み
     # ("2026-06-12", "2026-06-13"),  # 確保済み
     # ("2026-06-13", "2026-06-14"),  # 確保済み
     # ("2026-06-14", "2026-06-15"),  # 確保済み
+]
+
+# ============================================================
+# 【2027年6月 K-Tree Hotel】予約開放待ち監視
+# 予約可能になったら通知（価格フィルターなし）
+# ============================================================
+KTREE_DATE_RANGES = [
+    ("2027-06-10", "2027-06-15"),  # 5泊
 ]
 
 # 本命ホテル：これが出たら最優先通知
@@ -1193,6 +1199,138 @@ def check_busan_city_hotel(checkin: str, checkout: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# K-Tree Hotel（be4.wingsbooking.com/KTREE1111）
+# 予約開放待ち監視：空室が出た時点で通知（価格フィルターなし）
+# ---------------------------------------------------------------------------
+
+KTREE_SESSION_OBJ = {
+    "SS_PMS_SEQ_NO": "502",
+    "SS_PMS_CODE": "KTREE1111",
+    "SS_MEMB_SEQ_NO": "",
+    "SS_MEMB_MASTER_NO": "",
+    "SS_MEMB_LASTNAME": "",
+    "SS_MEMB_FIRSTNAME": "",
+    "SS_MEMB_EMAIL": "",
+    "SS_MEMB_TEL": "",
+    "SS_LANG_TYPE": "KO",
+    "SS_REMOTE_IP": "",
+    "SS_LOGIN_TYPE": "",
+    "SS_SNS_NAVER_CLIENT_ID": "hayDtzmpoiuhJl1srBnV",
+    "SS_SNS_NAVER_CLIENT_SECRET": "iuzEyiZE8y",
+    "SS_SNS_NAVER_RETURN_HOST": "https://be4.wingsbooking.com",
+    "SS_OPERATION_MODE": "prod",
+    "SS_PRIVACY_HOTEL": "false",
+    "SS_CURRENCY_TYPE": "KRW",
+    "SS_MEMBERSHIP_SEQ_NO": "",
+    "SS_MEMBERSHIP_TYPE": "",
+    "SS_MEMBERSHIP_POINT_TYPE": "",
+    "SS_MEMBERSHIP_COUP_CNT": "",
+    "SS_MEMBERSHIP_COUP_PRICE": "",
+    "SS_MEMBERSHIP_POINT_PRICE": "",
+    "SS_EXT_CHANNEL_SEQ_NO": "",
+    "SS_ARRIVAL_TIME_FLAG": "N",
+    "SS_ARRIVAL_TIME_START": "",
+    "SS_ARRIVAL_TIME_END": "",
+    "SS_USE_LANG_TYPE": "KO|EN",
+}
+
+
+def check_ktree1111(checkin: str, checkout: str) -> list[dict]:
+    """K-Tree Hotel の空室を確認する。予約開放前は空リストが返る。"""
+    results = []
+    try:
+        session = requests.Session()
+        session.headers["User-Agent"] = USER_AGENT
+
+        session.get("https://be4.wingsbooking.com/KTREE1111", timeout=15)
+        session.get(
+            "https://be4.wingsbooking.com/KTREE1111/roomSelect",
+            params={
+                "check_in": checkin,
+                "check_out": checkout,
+                "rooms": "1",
+                "adult": "1",
+                "children": "0",
+                "channel_code": "WINGS_B2C",
+            },
+            timeout=15,
+        )
+
+        session.headers.update({
+            "X-Requested-With": "XMLHttpRequest",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Referer": (
+                f"https://be4.wingsbooking.com/KTREE1111/roomSelect"
+                f"?check_in={checkin}&check_out={checkout}"
+                "&rooms=1&adult=1&children=0&channel_code=WINGS_B2C"
+            ),
+        })
+        params = {
+            **KTREE_SESSION_OBJ,
+            "pms_seq_no": "502",
+            "check_in": checkin,
+            "check_out": checkout,
+            "rooms": "1",
+            "adult": "1",
+            "children": "0",
+            "channel_code": "WINGS_B2C",
+            "lang_type": "KO",
+            "prm_seq_no": "",
+            "cpny_seq_no": "",
+            "mmbrs_seq_no": "",
+            "ext_channel_seq_no": "",
+        }
+        resp = session.post(
+            "https://be4.wingsbooking.com/KTREE1111/user/hotel/roomList",
+            data={"parameter": json.dumps(params)},
+            timeout=15,
+        )
+        rooms = resp.json().get("result", [])
+
+        if not rooms:
+            print("  [K-Tree Hotel] 空室なし（予約未開放 or 満室）")
+            return results
+
+        booking_url = (
+            f"https://be4.wingsbooking.com/KTREE1111/roomSelect"
+            f"?check_in={checkin}&check_out={checkout}"
+            "&rooms=1&adult=1&children=0&channel_code=WINGS_B2C"
+        )
+        seen = set()
+        for room in rooms:
+            room_name = room.get("room_name", "客室")
+            daily = room.get("daily_rate", [])
+            price_krw = int(daily[0]["day_rate"]) if daily else int(room.get("basic_rate", 0))
+            if price_krw in seen:
+                continue
+            seen.add(price_krw)
+            price_jpy = int(price_krw * KRW_TO_JPY)
+            nights = (
+                datetime.strptime(checkout, "%Y-%m-%d") - datetime.strptime(checkin, "%Y-%m-%d")
+            ).days
+            total_jpy = price_jpy * nights
+            print(f"    ✓ {room_name}: ₩{price_krw:,}/泊 ≈ ¥{price_jpy:,}/泊（{nights}泊合計≈¥{total_jpy:,}）")
+            results.append({
+                "site": "K-Tree Hotel",
+                "name": f"K-Tree Hotel {room_name}",
+                "checkin": checkin,
+                "checkout": checkout,
+                "price": f"₩{price_krw:,}/泊（≈¥{price_jpy:,}/泊、{nights}泊合計≈¥{total_jpy:,}）",
+                "price_num": price_jpy,
+                "area": "海雲台",
+                "url": booking_url,
+            })
+
+        print(f"  [K-Tree Hotel] 🎉 予約開放！{len(results)} 件の部屋タイプあり")
+
+    except Exception as e:
+        print(f"  [K-Tree Hotel] エラー: {e}")
+
+    return results
+
+
+# ---------------------------------------------------------------------------
 # エントリーポイント
 # ---------------------------------------------------------------------------
 
@@ -1246,6 +1384,13 @@ def main() -> None:
 
         # print("  【Busan City Hotel】")
         # all_hotels += check_busan_city_hotel(checkin, checkout)
+        print()
+
+    # --- K-Tree Hotel 2027年6月 予約開放待ち監視 ---
+    for checkin, checkout in KTREE_DATE_RANGES:
+        print(f"--- K-Tree Hotel {checkin}〜{checkout} ---")
+        ktree_results = check_ktree1111(checkin, checkout)
+        all_hotels += ktree_results
         print()
 
     print(f"=== 結果サマリー ===")
