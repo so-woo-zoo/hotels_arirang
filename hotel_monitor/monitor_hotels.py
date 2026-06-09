@@ -146,7 +146,7 @@ def send_discord_notification(hotels: list[dict]) -> None:
 
     def _send_list(hotels: list[dict], header: str) -> None:
         from collections import defaultdict
-        AREA_ORDER = ["釜山駅", "西面", "海雲台", "その他"]
+        AREA_ORDER = ["釜山駅", "西面", "海雲台", "高陽", "その他"]
 
         by_date_area = defaultdict(lambda: defaultdict(list))
         ota_by_date = defaultdict(list)
@@ -1317,7 +1317,7 @@ def check_ktree1111(checkin: str, checkout: str) -> list[dict]:
                 "checkin": checkin,
                 "price": f"₩{price_krw:,}（≈¥{price_jpy:,}）",
                 "price_num": price_jpy,
-                "area": "海雲台",
+                "area": "高陽",
                 "url": booking_url,
             })
 
