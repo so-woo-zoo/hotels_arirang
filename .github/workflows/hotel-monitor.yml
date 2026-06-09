@@ -1,8 +1,8 @@
 name: 釜山ホテル空室監視
 
 on:
-  schedule:
-    - cron: '*/15 * * * *'   # 15分おきに実行
+  # schedule:
+  #   - cron: '*/15 * * * *'   # 15分おきに実行（監視再開時はコメントを外す）
   workflow_dispatch:           # GitHub画面から手動実行も可能
 
 jobs:
