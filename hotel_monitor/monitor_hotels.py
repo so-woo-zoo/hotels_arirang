@@ -49,7 +49,11 @@ DATE_RANGES = [
 # 予約可能になったら通知（価格フィルターなし）
 # ============================================================
 KTREE_DATE_RANGES = [
-    ("2027-06-10", "2027-06-15"),  # 5泊
+    ("2027-06-10", "2027-06-11"),
+    ("2027-06-11", "2027-06-12"),
+    ("2027-06-12", "2027-06-13"),
+    ("2027-06-13", "2027-06-14"),
+    ("2027-06-14", "2027-06-15"),
 ]
 
 # 本命ホテル：これが出たら最優先通知
@@ -1306,17 +1310,12 @@ def check_ktree1111(checkin: str, checkout: str) -> list[dict]:
                 continue
             seen.add(price_krw)
             price_jpy = int(price_krw * KRW_TO_JPY)
-            nights = (
-                datetime.strptime(checkout, "%Y-%m-%d") - datetime.strptime(checkin, "%Y-%m-%d")
-            ).days
-            total_jpy = price_jpy * nights
-            print(f"    ✓ {room_name}: ₩{price_krw:,}/泊 ≈ ¥{price_jpy:,}/泊（{nights}泊合計≈¥{total_jpy:,}）")
+            print(f"    ✓ {room_name}: ₩{price_krw:,} ≈ ¥{price_jpy:,}")
             results.append({
                 "site": "K-Tree Hotel",
                 "name": f"K-Tree Hotel {room_name}",
                 "checkin": checkin,
-                "checkout": checkout,
-                "price": f"₩{price_krw:,}/泊（≈¥{price_jpy:,}/泊、{nights}泊合計≈¥{total_jpy:,}）",
+                "price": f"₩{price_krw:,}（≈¥{price_jpy:,}）",
                 "price_num": price_jpy,
                 "area": "海雲台",
                 "url": booking_url,
