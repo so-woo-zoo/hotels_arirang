@@ -35,20 +35,9 @@ def _is_blocked(name: str) -> bool:
     lower = name.lower()
     return any(kw in lower for kw in BLOCK_KEYWORDS)
 # ============================================================
-# 【2026年6月 釜山旅行】監視完了・全日程ホテル確保済み（2026-06-10）
+# 【2027年6月 釜山旅行】監視中
 # ============================================================
 DATE_RANGES = [
-    # ("2026-06-11", "2026-06-12"),  # 確保済み
-    # ("2026-06-12", "2026-06-13"),  # 確保済み
-    # ("2026-06-13", "2026-06-14"),  # 確保済み
-    # ("2026-06-14", "2026-06-15"),  # 確保済み
-]
-
-# ============================================================
-# 【2027年6月 K-Tree Hotel】予約開放待ち監視
-# 予約可能になったら通知（価格フィルターなし）
-# ============================================================
-KTREE_DATE_RANGES = [
     ("2027-06-10", "2027-06-11"),
     ("2027-06-11", "2027-06-12"),
     ("2027-06-12", "2027-06-13"),
@@ -58,7 +47,7 @@ KTREE_DATE_RANGES = [
 
 # 本命ホテル：これが出たら最優先通知
 PRIORITY_HOTELS = {
-    "東横INN": {"area": "海雲台", "checkins": {"2026-06-12", "2026-06-13"}},
+    "東横INN": {"area": "海雲台", "checkins": {"2027-06-10", "2027-06-11", "2027-06-12", "2027-06-13", "2027-06-14"}},
 }
 SCREENSHOT_DIR = "screenshots"
 
@@ -413,7 +402,7 @@ TOYOKO_INN_AREA = {
 }
 
 # 東横INN海雲台：この文字列を含む部屋タイプのみ通知する（空文字にすると全部屋を通知）
-TOYOKO_HAEUNDAE_ROOM_FILTER = "海側ダブル"
+TOYOKO_HAEUNDAE_ROOM_FILTER = ""
 
 def _check_toyoko_inn_one(bid: str, hotel_code: str, checkin: str, checkout: str) -> list[dict]:
     results = []
@@ -1343,18 +1332,15 @@ def main() -> None:
     for checkin, checkout in DATE_RANGES:
         print(f"--- {checkin} チェックイン ---")
 
-        # 一時停止中（東横INN海雲台のみ監視）
         # print("  【Booking.com】")
         # all_hotels += check_booking_com(checkin, checkout)
 
         # print("  【Trip.com】")
         # all_hotels += check_trip_com(checkin, checkout)
 
-        print("  【東横INN 海雲台】")
+        print("  【東横INN】")
         toyoko_results = check_toyoko_inn(checkin, checkout)
         for h in toyoko_results:
-            if h.get("area") != "海雲台":
-                continue
             if TOYOKO_HAEUNDAE_ROOM_FILTER and TOYOKO_HAEUNDAE_ROOM_FILTER not in h["name"]:
                 print(f"    スキップ（部屋フィルター対象外）: {h['name']}")
                 continue
@@ -1383,13 +1369,6 @@ def main() -> None:
 
         # print("  【Busan City Hotel】")
         # all_hotels += check_busan_city_hotel(checkin, checkout)
-        print()
-
-    # --- K-Tree Hotel 2027年6月 予約開放待ち監視 ---
-    for checkin, checkout in KTREE_DATE_RANGES:
-        print(f"--- K-Tree Hotel {checkin}〜{checkout} ---")
-        ktree_results = check_ktree1111(checkin, checkout)
-        all_hotels += ktree_results
         print()
 
     print(f"=== 結果サマリー ===")
